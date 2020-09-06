@@ -1,14 +1,19 @@
 from django.shortcuts import render, redirect
-from signup.models import *
 import hashlib
 from django.core.exceptions import ObjectDoesNotExist
+from signup.models import *
+from upload.models import *
 
 # Create your views here.
 def index(request):
     if not "user_id" in request.session.keys():
         return redirect("main_loginView")
 
-    return render(request, "main/index.html")
+    user_id = request.session["user_id"]
+    user = User.objects.get(user_id=user_id)
+    documents = Document.objects.filter(user_id=user)
+    content = {"documents": documents}
+    return render(request, "main/index.html", content)
 
 def loginView(request):
     if "user_id" in request.session.keys():
@@ -50,3 +55,22 @@ def logout(request):
     if "code" in request.session.keys():
         del request.session["code"]
     return redirect("main_loginView")
+
+import os
+from django.conf import settings
+from django.http import HttpResponse
+
+def download(request):
+    path = request.GET["path"]
+    file_path = os.path.join(settings.MEDIA_ROOT, path)
+
+    if os.path.exists(file_path):
+        binary_file = open(file_path, "rb")
+        response = HttpResponse(binary_file.read(), content_type="application/liquid; charset=utf-8")
+        response["Content-Disposition"] = "attachment; filename=" + os.path.basename(file_path)
+        print("*** os.path.basename(file_path):", os.path.basename(file_path))
+        return response
+    
+    else:
+        message = "알 수 없는 오류가 발생했습니다."
+        return render(request, "main/error.html", {"message": message})
